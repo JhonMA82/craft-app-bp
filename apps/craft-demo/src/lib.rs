@@ -4,6 +4,8 @@
 
 pub mod app;
 pub mod gallery;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod settings;
 
 pub use app::{COMMANDS, CraftApp, DemoApp, View, workspace};
 pub use craft_shell;

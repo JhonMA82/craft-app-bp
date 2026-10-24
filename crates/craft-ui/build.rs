@@ -17,6 +17,8 @@ fn main() {
 fn icon_data() -> Result<(), String> {
     let manifest = std::env::var("CARGO_MANIFEST_DIR").map_err(|e| e.to_string())?;
     let root = std::path::Path::new(&manifest).join("../../assets/icons/ui/design");
+    println!("cargo:rerun-if-changed={}", root.join("palette.toml").display());
+    println!("cargo:rerun-if-changed={}", root.join("aliases.toml").display());
     let read = |name: &str| std::fs::read_to_string(root.join(name)).map_err(|e| format!("{name}: {e}"));
     let table = |name: &str| read(name)?.parse::<toml::Table>().map_err(|e| format!("{name}: {e}"));
     let hex = |v: Option<&toml::Value>, what: &str| -> Result<String, String> {

@@ -5,6 +5,8 @@
 //! Adapted from SolidCraft (`crates/ui-egui/src/toolbar.rs`: `app_bar`, `file_menu`,
 //! `app_bar_separator`), MIT OR Apache-2.0. See ATTRIBUTION.md.
 
+use std::collections::BTreeMap;
+
 use craft_ui::i18n::tr;
 use craft_ui::icons;
 use craft_ui::theme::Tokens;
@@ -12,6 +14,7 @@ use craft_ui::ui_kit::{Container, Edge, Menu, MenuItem, Surface};
 use egui::{Align2, FontId, Id, Pos2, Rect, Sense, Stroke, Ui, pos2, vec2};
 
 use crate::commands::CommandSpec;
+use crate::keymap;
 use crate::titlebar;
 use crate::{DocumentTab, MenuEntry, Shell, ShellApp, builtin};
 
@@ -113,7 +116,8 @@ pub fn show<A: ShellApp>(ui: &mut Ui, shell: &mut Shell, app: &mut A) {
                 continue;
             }
             first_action = false;
-            if file_action(ui, &t, x, r.center().y, spec, app.command_enabled(id), compact) {
+            let shortcut = keymap::effective(registry, &shell.keymap.custom, id);
+            if file_action(ui, &t, x, r.center().y, spec, shortcut.as_deref(), app.command_enabled(id), compact) {
                 clicked_action = Some(spec.id);
             }
             x += step;
@@ -156,7 +160,7 @@ pub fn show<A: ShellApp>(ui: &mut Ui, shell: &mut Shell, app: &mut A) {
     if let Some((index, at)) = toggle_menu {
         toggle_menu_at(ui.ctx(), index, at);
     }
-    show_menu(ui.ctx(), app, &mut action);
+    show_menu(ui.ctx(), app, &shell.keymap.custom, &mut action);
     if let Some(id) = action {
         shell.run(app, id);
     }
@@ -191,7 +195,7 @@ fn bar_button(ui: &mut Ui, t: &Tokens, center: Pos2, icon: &str, label: &str, ha
 }
 
 /// A file action from its registry spec: a disabled one is dimmed and ignores clicks.
-fn file_action(ui: &mut Ui, t: &Tokens, x: f32, y: f32, spec: &CommandSpec, enabled: bool, compact: bool) -> bool {
+fn file_action(ui: &mut Ui, t: &Tokens, x: f32, y: f32, spec: &CommandSpec, shortcut: Option<&str>, enabled: bool, compact: bool) -> bool {
     let width = if compact { 22.0 } else { 32.0 };
     let br = Rect::from_center_size(pos2(x, y), vec2(width, 32.0));
     let resp = ui.interact(br, ui.id().with(("ab", spec.id)), if enabled { Sense::click() } else { Sense::hover() });
@@ -203,10 +207,9 @@ fn file_action(ui: &mut Ui, t: &Tokens, x: f32, y: f32, spec: &CommandSpec, enab
         ui.painter().rect_filled(br.shrink(3.0), t.radius_sm, t.app_bar_hover_button);
     }
     icons::paint_app_bar(ui.painter(), Rect::from_center_size(br.center(), vec2(18.0, 18.0)), spec.icon, if enabled { 1.0 } else { 0.35 });
-    let tip = match spec.shortcut {
+    let tip = match shortcut {
         Some(key) if enabled => format!("{label} ({key})"),
-        Some(_) => label.to_string(),
-        None => label.to_string(),
+        _ => label.to_string(),
     };
     enabled && resp.on_hover_text(tip).clicked() && craft_ui::input::once_this_pass(ui.ctx(), spec.id)
 }
@@ -377,7 +380,7 @@ fn toggle_menu_at(ctx: &egui::Context, index: usize, at: Pos2) {
 }
 
 /// The open application menu, and the row a click chose.
-fn show_menu<A: ShellApp>(ctx: &egui::Context, app: &A, action: &mut Option<&'static str>) {
+fn show_menu<A: ShellApp>(ctx: &egui::Context, app: &A, custom: &BTreeMap<String, String>, action: &mut Option<&'static str>) {
     let Some((index, at)) = ctx.data(|d| d.get_temp::<(usize, Pos2)>(Id::new(MENU))) else { return };
     let Some(menu) = app.menus().get(index) else {
         ctx.data_mut(|d| d.remove::<(usize, Pos2)>(Id::new(MENU)));
@@ -394,7 +397,8 @@ fn show_menu<A: ShellApp>(ctx: &egui::Context, app: &A, action: &mut Option<&'st
                         MenuEntry::Command(id) => {
                             let Some(spec) = app.commands().get(id) else { continue };
                             let mut item = MenuItem::new(spec.id, spec.label, spec.icon);
-                            item.shortcut = spec.shortcut.unwrap_or("");
+                            let shortcut = keymap::effective(app.commands(), custom, spec.id);
+                            item.shortcut = shortcut.as_deref().unwrap_or("");
                             item.enabled = app.command_enabled(spec.id);
                             let response = item.show(ui);
                             if response.clicked() && craft_ui::input::once_this_pass(ui.ctx(), &format!("menu:{}", spec.id)) {
@@ -404,8 +408,14 @@ fn show_menu<A: ShellApp>(ctx: &egui::Context, app: &A, action: &mut Option<&'st
                             }
                         }
                         MenuEntry::Preferences => {
+                            let registered = app.commands().get(builtin::SHELL_PREFERENCES).is_some();
+                            let shortcut = if registered {
+                                keymap::effective(app.commands(), custom, builtin::SHELL_PREFERENCES).unwrap_or_default()
+                            } else {
+                                "Ctrl+Comma".to_string()
+                            };
                             let mut item = MenuItem::new("menu:preferences", "menu.preferences", "settings");
-                            item.shortcut = "Ctrl+Comma";
+                            item.shortcut = &shortcut;
                             let response = item.show(ui);
                             craft_ui::scenario::publish_target("menu:preferences", response.rect);
                             if response.clicked() && craft_ui::input::once_this_pass(ui.ctx(), "menu:preferences") {

@@ -15,6 +15,14 @@ serde.workspace = true
 serde_json.workspace = true
 log.workspace = true
 web-time.workspace = true
+craft-docpath.workspace = true
+craft-quit.workspace = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+craft-platform = { workspace = true, features = ["appearance"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+craft-platform = { workspace = true, features = ["browser"] }
 
 [lints]
 workspace = true

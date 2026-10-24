@@ -14,6 +14,15 @@ craft-shell.workspace = true
 egui.workspace = true
 eframe.workspace = true
 log.workspace = true
+serde.workspace = true
+craft-window.workspace = true
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+craft-settings.workspace = true
+craft-quit = { workspace = true, features = ["menu"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+craft-quit.workspace = true
 
 [dev-dependencies]
 craft-test.workspace = true

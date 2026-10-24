@@ -76,8 +76,18 @@ surface that mutates app state needs the same guard, or the action can run twice
 ## Tests worth writing
 
 Consumer-visible behaviour: a command changes the model, a setting survives save/load, Cancel
-restores the opening preferences, a rebind moves the shortcut, both themes draw the gallery, a
-translated label appears after switching language, a geometry expectation for the shell's cards.
+restores the opening preferences and keymap, a rebind moves the shortcut, Ctrl+S reaches the app's
+save command, both themes draw the gallery, a translated label appears after switching language, a
+geometry expectation for the shell's cards.
+
+Settings and close paths have two extra checks:
+
+- `Shell::take_quit_request()` returns true once after `shell.quit`; `Shell::ui` issues no
+  `ViewportCommand::Close`.
+- `ShellApp::can_close` false keeps the window open; `close_denied` is called once per request.
+- Desktop `SettingsHost` uses `config.toml`; the harness does not write it. Test the settings type
+  with `craft_settings::Location::Memory` instead of a real profile.
+
 Keep unit tests for pure functions (`fit`, registry validation, theme contrast/round trip, key
 parsing) beside the code.
 
@@ -86,7 +96,13 @@ only proves a copy of the implementation, it will fail for the wrong reason late
 
 ## Gates
 
-`cargo xtask ci` = `fmt --check`, `ui-containers`, `i18n --check`, `layers`, `clippy -D warnings`,
-`test --workspace`. The container gate is the important one for UI code: only
+`cargo xtask ci` = `fmt --check`, `ui-containers`, `i18n --check`, `layers`,
+`clippy --profile ci -D warnings`, `test --workspace --profile ci`. It does not compile for wasm;
+run `cargo xtask web` for that. The container gate is the important one for UI code: only
 `crates/craft-ui/src/ui_kit/container.rs` may name raw egui hosts. Run
 `cargo test -p craft-demo --test ui` for the headless shell scenarios alone.
+
+`cargo xtask ci` does **not** compile for wasm. `cargo xtask web` runs
+`cargo check -p craft-demo-web --target wasm32-unknown-unknown` and fails with an install hint when
+that target is missing (`rustup target add wasm32-unknown-unknown`). CI runs both; run both locally
+before changing `apps/craft-demo-web` or anything the browser host pulls in.

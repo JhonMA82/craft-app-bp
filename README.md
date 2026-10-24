@@ -20,12 +20,14 @@ cargo run -p craft-demo                  # the desktop reference application
 cargo test -p craft-demo --test ui       # headless shell scenarios
 cd apps/craft-demo-web && trunk serve    # the same app in a browser (http://127.0.0.1:8782)
 cargo xtask ci                           # fmt, containers, i18n, layers, clippy, tests
+cargo xtask web                          # wasm32 check for craft-demo-web
 cargo run -p craft-demo-hot              # the UI in a hot-reloaded library (docs/hot-reload.md)
 ```
 
-The desktop binary persists its shell state under the OS data directory; the web build uses local
-storage. Both run the identical `CraftApp` from `craft-demo`. The default view is Home (the FileView
-start page); the workspace opens in the floating layout with the Browser and History cards shown.
+The desktop binary keeps user-editable settings in `config.toml` (atomic, backed up and migrated)
+and transient UI state in eframe storage; the web build uses local storage. Both run the identical
+`CraftApp` from `craft-demo`. The default view is Home (the FileView start page); the workspace
+opens in the floating layout with the Browser and History cards shown.
 
 ## Layout
 
@@ -40,16 +42,23 @@ start page); the workspace opens in the floating layout with the Browser and His
 | `apps/craft-demo-hot` | Development host that hot-reloads the UI library |
 | `apps/craft-demo-hot-lib` | Reloadable UI library (dylib) used by the hot host |
 | `apps/craft-demo-web` | Trunk bootstrap for wasm32 |
-| `xtask` | Gates: `ui-containers`, `i18n --check`, `layers`, `ci` |
+| `xtask` | Gates: `ui-containers`, `i18n --check`, `layers`, `web`, `ci` |
 
 See `docs/` for [building an app](docs/building-an-app.md), [architecture](docs/architecture.md),
 the [ui-kit](docs/ui-kit.md), [theming](docs/theming.md), [commands](docs/adding-a-command.md),
-[testing](docs/testing.md), [i18n](docs/i18n.md) and [hot reload](docs/hot-reload.md).
+[testing](docs/testing.md), [i18n](docs/i18n.md), [hot reload](docs/hot-reload.md) and the
+[pinned shared infrastructure](docs/craft-libs.md).
 
-## Built on patterns from SolidCraft
+## Licence and attribution
 
-The shell's UI layer is adapted from [SolidCraft](https://github.com/tangency-labs/solidcraft)
-(MIT OR Apache-2.0), with the CAD domain removed: tokens and palettes, the container policy, the
-retained kit, the icon renderer, the keymap, messages and the xtask guards. `ATTRIBUTION.md` lists
-every adapted file and the changes made. Fonts are IBM Plex (SIL OFL 1.1). This project is
-independent of SolidCraft.
+Craft Boilerplate is licensed under MIT OR Apache-2.0 (`LICENSE-MIT`, `LICENSE-APACHE`).
+Portions are adapted from [SolidCraft](https://github.com/tangency-labs/solidcraft), commit
+`0db2abbeca4ae5c82d8d560dafd74feccb3bfbe4` (MIT OR Apache-2.0), with the CAD domain removed:
+tokens and palettes, the container policy, the retained kit, the icon renderer, the keymap,
+messages and the xtask guards. `ATTRIBUTION.md` lists every adapted file and the changes made;
+`NOTICE` summarises the project, font, icon and dependency terms.
+
+Fonts are IBM Plex (SIL OFL 1.1, licence files beside the fonts). Most icon masters are original;
+a few are copied from SolidCraft and named in `ATTRIBUTION.md`. Rust dependencies are recorded in
+`Cargo.lock` and keep their own licences; no generated third-party licence bundle is currently
+shipped. This project is independent of SolidCraft.

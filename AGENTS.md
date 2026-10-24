@@ -6,6 +6,9 @@
   `CentralPanel`, `Popup`, `SubMenu`). `cargo xtask ui-containers` enforces it.
 - Layers: `craft-theme`/`craft-i18n` (L0) → `craft-ui` (L1) → `craft-shell` (L2). Apps are exempt;
   `craft-test` is a dev-dependency only. `cargo xtask layers` enforces it.
+- Shared infrastructure is pinned from `craft-libs` at one git revision (`craft-quit`,
+  `craft-window`, `craft-settings`, `craft-atomic`, `craft-platform`, `craft-docpath`); see
+  `docs/craft-libs.md`. The local `craft-ui`/`craft-i18n` are not the craft-libs crates.
 - Every colour, size, radius and spacing comes from `craft_theme::Tokens`; no literals in widgets.
 - No `unwrap`, `expect`, `panic`, `todo`, `unimplemented` or `unreachable` in production code. Test
   modules that need them add `#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]`.
@@ -20,8 +23,9 @@
   is an override with a no-op default. `docs/building-an-app.md` maps each method to the surface it drives and is the place to
   start for any new app or feature; `apps/craft-demo/src/app.rs` is the reference
   implementation.
-- One `Shell` per window. Persist with `Shell::save`/`Shell::load` under `STORAGE_UI`; `UiSettings`
-  and `Panels` are `#[serde(default)]`, so add fields, never rename existing ones.
+- One `Shell` per window. Desktop keeps user-editable settings in `config.toml` through
+  `craft-settings`; transient UI state uses `Shell::save`/`Shell::load` under `STORAGE_UI`.
+  `UiSettings` and `Panels` are `#[serde(default)]`, so add fields, never rename existing ones.
 - Defaults: floating layout, Browser open (250 pt), Properties closed (264 pt), History open
   (40 pt). Home is the app's `home()` (FileView) and hides the ribbon, cards and canvas.
 - Surfaces: application bar (title, Home, menus, file actions, document tabs, Help/Settings,
@@ -55,6 +59,7 @@ scale an app from the text alone.
 
 ```sh
 cargo xtask ci                    # fmt, containers, i18n, layers, clippy, tests
+cargo xtask web                   # wasm32 check for craft-demo-web (ci does not cover it)
 cargo test -p craft-demo --test ui # headless shell scenarios
 cargo run -p craft-demo           # the reference app (check the surface you changed)
 cd apps/craft-demo-web && trunk serve

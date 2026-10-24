@@ -6,6 +6,8 @@
 //! `prefs/interface.rs`, `ui_kit/panel.rs::page_list_sized`), MIT OR Apache-2.0. The CAD pages and
 //! controls are not ported. See ATTRIBUTION.md.
 
+use std::collections::BTreeMap;
+
 use craft_ui::i18n::{self, tr};
 use craft_ui::layout::LayoutMode;
 use craft_ui::theme::{ColorVision, Tokens};
@@ -24,11 +26,19 @@ pub(crate) const SHORTCUTS_PAGE: usize = 2;
 /// The settings as they were when the dialog opened: Cancel and the close button put them back.
 const SNAPSHOT: &str = "craft_prefs_snapshot";
 
+/// Everything Cancel must put back, including the live key bindings.
+#[derive(Clone)]
+struct Snapshot {
+    settings: UiSettings,
+    panels: Panels,
+    keymap: BTreeMap<String, String>,
+}
+
 type Page = (&'static str, &'static str, &'static str, Option<&'static str>);
 
 pub fn show<A: ShellApp>(ui: &mut Ui, shell: &mut Shell, app: &mut A) {
     if !shell.prefs.open {
-        ui.ctx().data_mut(|d| d.remove::<(UiSettings, Panels)>(Id::new(SNAPSHOT)));
+        ui.ctx().data_mut(|d| d.remove::<Snapshot>(Id::new(SNAPSHOT)));
         return;
     }
     let ctx = ui.ctx().clone();
@@ -44,7 +54,7 @@ pub fn show<A: ShellApp>(ui: &mut Ui, shell: &mut Shell, app: &mut A) {
     if shell.prefs.page >= pages.len() {
         shell.prefs.page = GENERAL_PAGE;
     }
-    if ctx.data(|d| d.get_temp::<(UiSettings, Panels)>(Id::new(SNAPSHOT))).is_none() {
+    if ctx.data(|d| d.get_temp::<Snapshot>(Id::new(SNAPSHOT))).is_none() {
         remember(shell, &ctx);
     }
     let mut defaults = false;
@@ -325,13 +335,15 @@ fn page_defaults(shell: &mut Shell, page: &str) {
 }
 
 fn remember(shell: &Shell, ctx: &egui::Context) {
-    ctx.data_mut(|d| d.insert_temp(Id::new(SNAPSHOT), (shell.settings.clone(), shell.panels)));
+    let snapshot = Snapshot { settings: shell.settings.clone(), panels: shell.panels, keymap: shell.keymap.custom.clone() };
+    ctx.data_mut(|d| d.insert_temp(Id::new(SNAPSHOT), snapshot));
 }
 
 fn restore(shell: &mut Shell, ctx: &egui::Context) {
-    if let Some((settings, panels)) = ctx.data(|d| d.get_temp::<(UiSettings, Panels)>(Id::new(SNAPSHOT))) {
-        shell.settings = settings;
-        shell.panels = panels;
+    if let Some(snapshot) = ctx.data(|d| d.get_temp::<Snapshot>(Id::new(SNAPSHOT))) {
+        shell.settings = snapshot.settings;
+        shell.panels = snapshot.panels;
+        shell.keymap.custom = snapshot.keymap;
         appearance_changed(shell);
     }
 }
@@ -339,7 +351,7 @@ fn restore(shell: &mut Shell, ctx: &egui::Context) {
 /// The dialog's close button: the settings on screen are kept.
 fn close(shell: &mut Shell, ctx: &egui::Context) {
     shell.prefs.open = false;
-    ctx.data_mut(|d| d.remove::<(UiSettings, Panels)>(Id::new(SNAPSHOT)));
+    ctx.data_mut(|d| d.remove::<Snapshot>(Id::new(SNAPSHOT)));
 }
 
 /// Cancel, Esc and the header's close: put back the settings from when the dialog opened.
@@ -349,7 +361,7 @@ pub(crate) fn cancel(shell: &mut Shell, ctx: &egui::Context) {
     }
     restore(shell, ctx);
     shell.prefs.open = false;
-    ctx.data_mut(|d| d.remove::<(UiSettings, Panels)>(Id::new(SNAPSHOT)));
+    ctx.data_mut(|d| d.remove::<Snapshot>(Id::new(SNAPSHOT)));
 }
 
 fn appearance_changed(shell: &mut Shell) {

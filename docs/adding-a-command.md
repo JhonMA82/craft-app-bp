@@ -33,7 +33,9 @@
    missing key or an unknown id used in code.
 
 7. **Shortcuts**: the spec default is used until the user rebinds it in Preferences › Shortcuts.
-   Keys in `keymap::RESERVED` or `ShellApp::reserved_keys` cannot be bound.
+   Only keys the shell handles itself — `Escape`, `Ctrl+K` and `Ctrl+Shift+P` (`keymap::RESERVED`) —
+   plus whatever `ShellApp::reserved_keys` adds for your content cannot be bound. `Ctrl+S`, `Ctrl+N`
+   and `Ctrl+O` are ordinary app keys: bind them freely.
 
 8. **Document tabs and history** are model state, not commands: wire them through
    `documents`/`select_document`/`close_document` and `history`/`history_selected`/

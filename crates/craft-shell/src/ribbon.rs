@@ -6,6 +6,8 @@
 //! `ribbon_label_lines`, `fit`), MIT OR Apache-2.0. The CAD command families, pinning and
 //! drag-and-drop customisation are not ported. See ATTRIBUTION.md.
 
+use std::collections::BTreeMap;
+
 use craft_ui::i18n::tr;
 use craft_ui::icons;
 use craft_ui::layout::LayoutMode;
@@ -15,6 +17,7 @@ use egui::{Color32, FontId, Id, Rect, Sense, Stroke, Ui, pos2, vec2};
 
 use crate::commands::{CommandSpec, TabSpec};
 use crate::geometry::Cards;
+use crate::keymap;
 use crate::{Shell, ShellApp};
 
 pub const TAB_ROW_HEIGHT: f32 = 30.0;
@@ -257,10 +260,10 @@ fn body<A: ShellApp>(
             for (command, button_width) in commands.iter().zip(plan.widths.iter().copied()).take(drawn) {
                 let whole = Rect::from_min_size(pos2(button_x, top + 2.0), vec2(button_width, BUTTON_HEIGHT));
                 button_x += button_width + BUTTON_GAP;
-                command_button(ui, &painter, whole, command, app, action);
+                command_button(ui, &painter, whole, command, app, &shell.keymap.custom, action);
             }
         }
-        panel_label(ui, &painter, px, top, width, panel.label, tab.id, &commands, app, action, popup_id);
+        panel_label(ui, &painter, px, top, width, panel.label, tab.id, &commands, app, &shell.keymap.custom, action, popup_id);
         craft_ui::scenario::publish_rect(
             &format!("panel:{}:{}", tab.id, panel.id),
             Rect::from_min_max(pos2(px, top + 2.0), pos2(px + width, r.bottom())),
@@ -277,7 +280,8 @@ fn body<A: ShellApp>(
                     Menu::button(ui, tr(panel), |ui| {
                         for command in commands {
                             let mut item = MenuItem::new(command.id, command.label, command.icon);
-                            item.shortcut = command.shortcut.unwrap_or("");
+                            let shortcut = keymap::effective(app.commands(), &shell.keymap.custom, command.id);
+                            item.shortcut = shortcut.as_deref().unwrap_or("");
                             item.enabled = app.command_enabled(command.id);
                             if item.show(ui).clicked() && craft_ui::input::once_this_pass(ui.ctx(), "overflow_row") {
                                 *action = Some(command.id);
@@ -412,7 +416,15 @@ fn ribbon_tabs(ui: &mut Ui, painter: &egui::Painter, row: Rect, tabs: &[TabSpec]
 }
 
 /// One command button: icon over a label of at most two lines.
-fn command_button<A: ShellApp>(ui: &mut Ui, painter: &egui::Painter, whole: Rect, command: &CommandSpec, app: &A, action: &mut Option<&'static str>) {
+fn command_button<A: ShellApp>(
+    ui: &mut Ui,
+    painter: &egui::Painter,
+    whole: Rect,
+    command: &CommandSpec,
+    app: &A,
+    custom: &BTreeMap<String, String>,
+    action: &mut Option<&'static str>,
+) {
     let t = Tokens::get();
     let enabled = app.command_enabled(command.id);
     let response = ui.interact(whole, ui.id().with(("cmd", command.id)), if enabled { Sense::click() } else { Sense::hover() });
@@ -427,7 +439,7 @@ fn command_button<A: ShellApp>(ui: &mut Ui, painter: &egui::Painter, whole: Rect
     let galley = ribbon_button_galley(painter, label, whole.width() - BUTTON_LABEL_PADDING, ink);
     painter.galley(pos2(whole.center().x, whole.top() + 32.0), galley, ink);
     craft_ui::scenario::publish_target(&format!("ribbon:cmd:{}", command.id), whole);
-    let tip = match command.shortcut {
+    let tip = match keymap::effective(app.commands(), custom, command.id) {
         Some(key) => format!("{label} ({key})"),
         None => label.to_string(),
     };
@@ -448,6 +460,7 @@ fn panel_label<A: ShellApp>(
     tab: &str,
     commands: &[&CommandSpec],
     app: &A,
+    custom: &BTreeMap<String, String>,
     action: &mut Option<&'static str>,
     popup_id: Id,
 ) {
@@ -485,7 +498,8 @@ fn panel_label<A: ShellApp>(
                 egui::ScrollArea::vertical().id_salt("panel_menu_rows").max_height(room).show(ui, |ui| {
                     for command in commands {
                         let mut item = MenuItem::new(command.id, command.label, command.icon);
-                        item.shortcut = command.shortcut.unwrap_or("");
+                        let shortcut = keymap::effective(app.commands(), custom, command.id);
+                        item.shortcut = shortcut.as_deref().unwrap_or("");
                         item.enabled = app.command_enabled(command.id);
                         if item.show(ui).clicked() && craft_ui::input::once_this_pass(ui.ctx(), "panel_row") {
                             *action = Some(command.id);

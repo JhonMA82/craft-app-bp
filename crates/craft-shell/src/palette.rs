@@ -13,6 +13,7 @@ use craft_ui::ui_kit::{CommandSearch, Container, MenuItem, SearchFieldGeometry, 
 use egui::{Id, Key, Rect, Sense, Ui, pos2, vec2};
 
 use crate::commands::CommandSpec;
+use crate::keymap;
 use crate::ribbon::SEARCH_RECT;
 use crate::{Shell, ShellApp};
 
@@ -120,7 +121,8 @@ pub fn show<A: ShellApp>(ui: &mut Ui, shell: &mut Shell, app: &mut A) -> Option<
                                 let mut item = MenuItem::new(command.id, tr(command.label), command.icon);
                                 item.enabled = enabled.get(index).copied().unwrap_or(false);
                                 item.highlighted = index == selected;
-                                item.shortcut = command.shortcut.unwrap_or("");
+                                let shortcut = keymap::effective(app.commands(), &shell.keymap.custom, command.id);
+                                item.shortcut = shortcut.as_deref().unwrap_or("");
                                 let path = path_of(&shell.workspace, command.id);
                                 let response = item.search_row(ui, &query, &path, None);
                                 if item.highlighted && (up || down) {

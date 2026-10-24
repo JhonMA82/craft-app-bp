@@ -41,7 +41,7 @@ pub use history::{HistoryChip, HistoryTransport, TREE_ROW_HEIGHT, history_marker
 pub use layout::*;
 pub use menu::{Menu, MenuItem};
 pub use metrics::{ContentWidth, header_height, row_height, table_row_height};
-pub use panel::{ComputeStatus, FeatureOptions, Panel, Window, collapsible_header, header, panel_header_hover};
+pub use panel::{ComputeStatus, FeatureOptions, Panel, Part, Window, collapsible_header, header, panel_header_hover};
 pub use preferences::*;
 pub use preferences_small::*;
 pub use radial::{RADIAL_RADIUS, radial_menu};

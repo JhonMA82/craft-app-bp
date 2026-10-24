@@ -17,7 +17,7 @@ pub async fn wasm_start() -> Result<(), wasm_bindgen::JsValue> {
             Box::new(|cc| {
                 craft_demo::craft_ui::fonts::setup_bundled_fonts(&cc.egui_ctx);
                 let stored = cc.storage.and_then(|storage| storage.get_string(craft_demo::craft_shell::STORAGE_UI));
-                let app = craft_demo::CraftApp::new(cc, stored.as_deref()).map_err(|e| wasm_bindgen::JsValue::from_str(&e))?;
+                let app = craft_demo::CraftApp::new(cc, stored.as_deref()).map_err(std::io::Error::other)?;
                 Ok(Box::new(app))
             }),
         )

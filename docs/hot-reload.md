@@ -27,8 +27,9 @@ forwarding wrapper from the library source (`hot_functions_from_file!`), so keep
 signature and the `CraftApp` layout stable:
 
 - Changing drawing code in `craft-shell`, `craft-ui` or `craft-demo` hot-reloads.
-- Changing the signature of `render`, or the fields of `CraftApp`/`Shell`/`DemoApp`, requires
-  restarting the host (the old state in the host has the old layout).
+- Changing the signature of `render`, or the fields of `CraftApp`/`Shell`/`DemoApp`/`DemoSettings`,
+  requires restarting the host (the old state in the host has the old layout). `CraftApp` now owns
+  the desktop `SettingsHost`, so its layout is part of the ABI.
 - Global state inside the library resets on reload. This app keeps its state in the host, so it
   does not.
 
@@ -44,8 +45,10 @@ cargo watch -w crates -w apps/craft-demo/src -w apps/craft-demo-hot-lib \
 Terminal 2 — the host. Build it once; after that it only loads new libraries:
 
 ```sh
-cargo run -p craft-demo-hot
+CRAFT_DEMO_CONFIG_DIR=target/hot-config cargo run -p craft-demo-hot
 ```
+
+`CRAFT_DEMO_CONFIG_DIR` keeps the hot host's `config.toml` out of the real profile.
 
 Keep the watcher and host in one command if you prefer:
 

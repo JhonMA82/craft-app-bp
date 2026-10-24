@@ -40,13 +40,39 @@ fn layers(root: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// Checks the browser bootstrap. `ci` does not cover this target, so CI runs both.
+fn web(root: &Path) -> Result<(), String> {
+    if !wasm_target_installed(root) {
+        return Err("web: target wasm32-unknown-unknown is not installed; run `rustup target add wasm32-unknown-unknown`".into());
+    }
+    cargo(root, &["check", "-p", "craft-demo-web", "--target", "wasm32-unknown-unknown"])
+}
+
+/// Missing or unusable rustup is not treated as a missing target: `cargo check` reports the real
+/// problem. Prefer rustc's target-libdir so a non-rustup toolchain also gets the install hint.
+fn wasm_target_installed(root: &Path) -> bool {
+    let rustc = std::env::var("RUSTC").unwrap_or_else(|_| "rustc".into());
+    if let Ok(output) = Command::new(rustc).args(["--print", "target-libdir", "--target", "wasm32-unknown-unknown"]).current_dir(root).output()
+        && output.status.success()
+    {
+        return Path::new(String::from_utf8_lossy(&output.stdout).trim()).is_dir();
+    }
+    let rustup = std::env::var("RUSTUP").unwrap_or_else(|_| "rustup".into());
+    let output = Command::new(rustup).args(["target", "list", "--installed"]).current_dir(root).output();
+    let Ok(output) = output else { return true };
+    if !output.status.success() {
+        return true;
+    }
+    String::from_utf8_lossy(&output.stdout).lines().any(|line| line.trim() == "wasm32-unknown-unknown")
+}
+
 fn ci(root: &Path) -> Result<(), String> {
     cargo(root, &["fmt", "--check"])?;
     ui_containers::run(root)?;
     i18n::run(root)?;
     layers(root)?;
-    cargo(root, &["clippy", "--workspace", "--all-targets", "--", "-D", "warnings"])?;
-    cargo(root, &["test", "--workspace"])?;
+    cargo(root, &["clippy", "--workspace", "--all-targets", "--profile", "ci", "--", "-D", "warnings"])?;
+    cargo(root, &["test", "--workspace", "--profile", "ci"])?;
     println!("ci: ok");
     Ok(())
 }
@@ -65,8 +91,9 @@ fn main() {
             }
         }
         "layers" => layers(&root),
+        "web" => web(&root),
         "ci" => ci(&root),
-        _ => Err("usage: cargo xtask <ui-containers | i18n --check | layers | ci>".into()),
+        _ => Err("usage: cargo xtask <ui-containers | i18n --check | layers | web | ci>".into()),
     };
     if let Err(message) = result {
         eprintln!("{message}");

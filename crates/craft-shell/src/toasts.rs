@@ -1,6 +1,7 @@
 //! Transient notifications: at most four on screen for four seconds, newest at the bottom.
 
 use std::collections::VecDeque;
+use std::time::Duration;
 
 use craft_ui::theme::Tokens;
 use craft_ui::ui_kit::{Container, Surface};
@@ -45,9 +46,11 @@ impl Toasts {
     /// Drop expired toasts and draw the rest above the status bar's right corner.
     pub fn show(&mut self, ctx: &egui::Context, now: f64) {
         self.queue.retain(|toast| now - toast.at < LIFETIME_MS);
-        if self.queue.is_empty() {
+        let Some(left) = self.queue.iter().map(|toast| (LIFETIME_MS - (now - toast.at)).max(0.0)).reduce(f64::min) else {
             return;
-        }
+        };
+        // eframe does not repaint an idle window; without this the cards stay after their life.
+        ctx.request_repaint_after(Duration::from_millis(left as u64 + 1));
         let t = Tokens::get();
         let screen = ctx.content_rect();
         Container::new(ctx, Surface::Toast)

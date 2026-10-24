@@ -105,6 +105,37 @@ fn keymap_rebind_moves_the_shortcut() {
 }
 
 #[test]
+fn keymap_rebind_round_trips_through_save() {
+    let mut h = harness();
+    let registry = h.app.registry.clone();
+    let mut custom = h.shell.keymap.custom.clone();
+    craft_shell::keymap::bind(&registry, &mut custom, "shell.preferences", "Ctrl+G", true, &[]).expect("Ctrl+G is free");
+    h.shell.keymap.custom = custom;
+    let saved = h.shell.save();
+    let reloaded = Shell::new(h.app.workspace.clone(), Some(&saved));
+    assert_eq!(reloaded.keymap.custom.get("shell.preferences").map(String::as_str), Some("Ctrl+G"));
+}
+
+#[test]
+fn quit_request_is_consumed_once() {
+    let mut h = harness();
+    h.shell.run(&mut h.app, craft_shell::builtin::SHELL_QUIT);
+    assert!(h.shell.take_quit_request(), "the shell records the request");
+    assert!(!h.shell.take_quit_request(), "the host consumes it exactly once");
+}
+
+#[test]
+fn ctrl_s_is_no_longer_reserved() {
+    let mut h = harness();
+    // The demo only enables Save in the gallery, so open it first.
+    h.shell.run(&mut h.app, "app.gallery");
+    h.frames(2);
+    h.key(Key::S, Modifiers::CTRL);
+    h.frames(2);
+    assert_eq!(h.shell.status_text(), Some(craft_ui::i18n::tr("status.saved")), "Ctrl+S runs the app's save command");
+}
+
+#[test]
 fn gallery_renders_both_themes() {
     let mut h = harness();
     h.shell.run(&mut h.app, "app.gallery");

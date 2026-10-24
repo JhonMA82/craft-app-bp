@@ -12,7 +12,7 @@ use crate::panels::Panels;
 /// The storage key the demo app uses for the shell state.
 pub const STORAGE_UI: &str = "craft.ui";
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct UiSettings {
     /// `"dark"` or `"light"`.
@@ -43,9 +43,10 @@ impl Default for UiSettings {
     }
 }
 
-/// Our own title bar is only possible on a window we create without OS decorations.
+/// The platform frame is the default; `craft_window::Choice` overrides it before the window is
+/// created, and `Shell::new_with_frame` stores that decision for the app bar.
 fn default_custom_titlebar() -> bool {
-    cfg!(all(not(target_arch = "wasm32"), not(target_os = "macos")))
+    false
 }
 
 impl UiSettings {
@@ -65,11 +66,6 @@ impl UiSettings {
             self.scale = 1.0;
         }
         self.scale = self.scale.clamp(0.75, 2.0);
-        // An undecorated window without our caption buttons cannot be closed, so the custom
-        // title bar is mandatory wherever the window has no OS chrome.
-        if default_custom_titlebar() {
-            self.custom_titlebar = true;
-        }
         self.keymap.retain(|_, key| key.chars().count() <= 40);
     }
 }

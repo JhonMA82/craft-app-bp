@@ -13,7 +13,10 @@ use craft_ui::ui_kit::{Action, Confirm, Container, Surface, Tone};
 use egui::Ui;
 use serde::{Deserialize, Serialize};
 
+pub use craft_docpath;
 pub use craft_i18n as i18n;
+pub use craft_platform;
+pub use craft_quit;
 pub use craft_ui::{fonts, icons, scenario, theme, ui_kit};
 
 mod about;
@@ -173,6 +176,14 @@ pub trait ShellApp {
     fn status(&self) -> Option<Status> {
         None
     }
+    /// Whether a window close may proceed. The host asks this before it sends `Close` or accepts
+    /// the OS's close request; the default allows it. An app with unsaved documents returns
+    /// `false` and opens its save prompt from [`Self::close_denied`].
+    fn can_close(&mut self) -> bool {
+        true
+    }
+    /// A close was refused. Put the save/discard prompt on screen here.
+    fn close_denied(&mut self) {}
     fn preference_pages(&self) -> &[PageSpec] {
         &[]
     }
@@ -320,15 +331,14 @@ impl Shell {
             self.run(app, id);
         }
         prefs_window::show(ui, self, app);
-        about::show(ui, self);
+        about::show(ui, self, app.title());
         self.messages.show(ui);
         self.show_confirm(ui.ctx());
         self.toasts.show(ui.ctx(), now_ms());
         status::show(ui, self, app, content);
         self.shortcuts(ui, app);
-        if self.quit_requested {
-            ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
-        }
+        // The host owns the close policy: it consumes `take_quit_request()` in `eframe::App::logic`
+        // so `ShellApp::can_close` can cancel a request before `craft_quit` sees it.
         if self.settings.custom_titlebar && !cfg!(target_arch = "wasm32") {
             titlebar::resize_zones(ui);
         }
@@ -336,8 +346,12 @@ impl Shell {
 
     /// The persisted shell state as JSON.
     pub fn save(&self) -> String {
+        // The live rebindings are the single source of truth; `settings` may not have seen an
+        // Apply since the last edit.
+        let mut ui = self.settings.clone();
+        ui.keymap = self.keymap.custom.clone();
         let saved = SavedShell {
-            ui: self.settings.clone(),
+            ui,
             panels: self.panels,
             active_tab: self.ribbon.active_tab.clone(),
             palette_recent: self.palette.recent.clone(),
@@ -361,6 +375,12 @@ impl Shell {
         self.settings = saved.ui;
         self.last_theme = None;
         self.last_scale = f32::NAN;
+    }
+
+    /// Take the pending Quit command. The shell never closes the window itself, so the host can
+    /// ask the app whether it may close and then send `ViewportCommand::Close` once.
+    pub fn take_quit_request(&mut self) -> bool {
+        std::mem::take(&mut self.quit_requested)
     }
 
     /// Put a message on the status line and in the Messages window.

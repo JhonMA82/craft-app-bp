@@ -28,7 +28,9 @@ dependencies in the L0 crates, the testkit as a normal dependency, and UI toolki
 6. the transient status chip over the workspace;
 7. overlays: the ribbon search, preferences, about, messages, confirmations, toasts;
 8. shortcuts: Esc closes overlays and menus, Ctrl+K / S open the search, then command bindings;
-9. a pending quit sends `ViewportCommand::Close`.
+9. the host's `eframe::App::logic` consumes a pending quit (`Shell::take_quit_request`) and asks
+   `ShellApp::can_close` before sending `ViewportCommand::Close`; `craft_quit::on_close_request`
+   runs last so macOS can quit through `NSApplication` instead of dropping the window.
 
 Floating cards are `Container::area` hosts on the middle layer: they reserve no central space and
 paint above the canvas. Docked cards use `Container::edge`, so they consume their edge before the
@@ -50,22 +52,30 @@ required; every other method has a no-op default so an app opts into surfaces as
 shell owns the chrome state and `UiSettings`; the app owns the model. `docs/building-an-app.md`
 maps each method to its surface.
 
-Persistence is `Shell::save` / `Shell::load` behind `STORAGE_UI`: JSON with `ui`, `panels`,
+Desktop persists user-editable shell settings in `config.toml` through `craft-settings`
+(`apps/craft-demo/src/settings.rs`): theme, language, layout, scale, colour vision, title-bar
+choice and keymap. The store is atomic, keeps a backup, recovers damaged files and migrates by
+`schema_version`; `SettingsHost::tick` schedules the debounced save even in an idle app.
+Transient UI state (`active_tab`, palette history, canvas, window geometry) stays in eframe storage
+behind `STORAGE_UI`. Web has no settings store and keeps the shell JSON in local storage. The shell
+never persists the app's model — an app that needs persistence owns its own store and keys.
+
+`Shell::save` / `Shell::load` remain the JSON format for the transient state: `ui`, `panels`,
 `active_tab`, `palette_recent` and `palette_pinned`; every field is `#[serde(default)]` and
-`SavedShell::sanitize` clamps values, so old state keeps loading. The shell never persists the
-app's model — an app that needs persistence writes its own keys through the same `eframe::Storage`.
+`SavedShell::sanitize` clamps values. The keymap is synced from `Keymap::custom` when saving, so a
+rebind survives even before Apply.
 
 Defaults: floating layout, browser open (250 pt), properties closed (264 pt), history open
-(40 pt). On desktop, non-macOS `custom_titlebar` is forced on (an undecorated window needs the
-app bar's captions); the Preferences checkbox is hidden there.
+(40 pt), platform frame. `craft_window::Choice` decides whether the desktop or the app draws the
+title bar before the window is created; `custom_titlebar` records that decision for the app bar.
 
 ## Preferences semantics
 
-The dialog edits `UiSettings` and `Panels` live. A snapshot of both is taken when it opens:
-**Apply** re-baselines, **OK** keeps and closes, **Cancel**, Esc and the header's × restore the
-snapshot and close, **Restore defaults** resets the open built-in page. App-provided pages are
-drawn by the app: their own data is not in the shell snapshot, so an app page that edits app state
-must snapshot it itself or derive it from `UiSettings`.
+The dialog edits `UiSettings`, `Panels` and the live keymap. A snapshot of all three is taken when
+it opens: **Apply** re-baselines, **OK** keeps and closes, **Cancel**, Esc and the header's ×
+restore the snapshot and close, **Restore defaults** resets the open built-in page. App-provided
+pages are drawn by the app: their own data is not in the shell snapshot, so an app page that edits
+app state must snapshot it itself or derive it from `UiSettings`.
 
 ## Why `Container`
 

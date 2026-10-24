@@ -96,9 +96,15 @@ impl ShellApp for App {
 }
 ```
 
+`Ctrl+N` is an ordinary app shortcut: the shell reserves only `Escape`, `Ctrl+K` and
+`Ctrl+Shift+P`. The user can rebind it in Preferences › Shortcuts; the spec's `shortcut` is the
+default.
+
 ### The host
 
-One `Shell` per window. Persist with `Shell::save` under `STORAGE_UI`:
+One `Shell` per window. The minimal host below keeps the shell JSON in eframe storage under
+`STORAGE_UI`; the reference app adds `SettingsHost` (`config.toml`) for user-editable settings.
+Persist with `Shell::save`:
 
 ```rust
 struct Host {
@@ -124,6 +130,22 @@ eframe::run_native(
 
 ```rust
 impl eframe::App for Host {
+    fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // A close from the OS, the caption button or another window command.
+        if ctx.input(|i| i.viewport().close_requested()) && !self.app.can_close() {
+            ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            self.app.close_denied();
+        }
+        // The shell's Quit command: it never sends Close itself.
+        if self.shell.take_quit_request() {
+            if self.app.can_close() {
+                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            } else {
+                self.app.close_denied();
+            }
+        }
+        craft_shell::craft_quit::on_close_request(ctx);
+    }
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.shell.ui(&mut self.app, ui);
     }
@@ -133,9 +155,25 @@ impl eframe::App for Host {
 }
 ```
 
-The same host works on wasm (`eframe::WebRunner`, see `apps/craft-demo-web`). Where the window has
-no OS decorations (desktop, non-macOS), pass `.with_decorations(false)`: `UiSettings::sanitize`
-then keeps `custom_titlebar` on so the app bar's caption buttons can close the window.
+`ShellApp::can_close`/`close_denied` are the app's save-prompt hooks. `craft_quit` runs last: on
+macOS it cancels the close and quits through `NSApplication`, avoiding the Touch Bar crash; on
+other platforms it is a no-op. If a native picker or async save is pending, run
+`craft_shell::craft_platform::dialogs::DeferredClose::update` before `craft_quit`.
+
+The same host works on wasm (`eframe::WebRunner`, see `apps/craft-demo-web`). On desktop, choose
+the window frame before creating the window:
+
+```rust
+let choice = craft_window::Choice::probe(craft_window::Prefix::new("CRAFT"));
+let viewport = craft_window::decorate(egui::ViewportBuilder::default(), choice.frame());
+let app_frame = matches!(choice.frame(), craft_window::Frame::App(_));
+// Pass `Some(app_frame)` to Shell::new_with_frame / CraftApp::new_with_frame.
+```
+
+Where the desktop draws the frame (`Frame::Desktop`), the app bar must not draw caption buttons.
+Where the app draws it (`Frame::App`), use the frame's `layout` for minimize/maximize/close.
+`CRAFT_TITLEBAR=app` or `=system` overrides the probe. `SettingsHost` and the shared crates are
+described in [`docs/craft-libs.md`](craft-libs.md).
 
 ### Or copy the reference app
 
@@ -149,8 +187,10 @@ cp -r apps/craft-demo apps/my-app
    includes `apps/*`.
 2. **Register the crate** in `xtask/src/layers.rs`: add `("my-app", Class::Exempt)` to `TABLE`.
    An unregistered workspace crate fails `cargo xtask layers`.
-3. Keep `app.rs`'s host shape (`CraftApp { shell, demo }`, `draw`, `eframe::App`, `save`) and
-   replace `DemoApp` and `gallery.rs` with your model and surfaces.
+3. Keep `app.rs`'s host shape (`CraftApp { shell, demo, settings }`, `draw`, `logic`,
+   `eframe::App`, `save`) and replace `DemoApp` and `gallery.rs` with your model and surfaces.
+   Rename `DemoSettings`/`APP_ID` in `apps/craft-demo/src/settings.rs`; desktop settings live in
+   `config.toml`, transient UI state stays in eframe storage.
 4. For a browser or hot-reload host, copy `apps/craft-demo-web` / `craft-demo-hot` /
    `craft-demo-hot-lib` and repoint their `craft-demo` dependency and imports at `my-app`.
 5. Delete the demo specimens you do not need; keep one File menu, the required `ShellApp` methods
@@ -283,14 +323,16 @@ colour vision), Shortcuts. The footer is **Restore defaults · Cancel · Apply �
 - edits apply live;
 - **Apply** makes the current values the new baseline;
 - **OK** keeps them and closes;
-- **Cancel**, Esc and the header’s × put back the `UiSettings`/`Panels` from when the dialog
-  opened. Your own state is not reverted by the shell: if an app page edits app data, snapshot it
-  yourself or read it back from `UiSettings`.
+- **Cancel**, Esc and the header’s × put back the `UiSettings`, `Panels` and live keymap from when
+  the dialog opened. Your own state is not reverted by the shell: if an app page edits app data,
+  snapshot it yourself or read it back from `UiSettings`.
 
 `UiSettings` fields: `theme` (`"dark"`/`"light"`), `language`, `layout` (`Floating` default,
 `Docked`), `scale`, `color_vision`, `custom_titlebar`, `keymap`. All are `#[serde(default)]`, so old
-saved state keeps working. Defaults: left card open 250 pt, right card closed 264 pt, history open
-40 pt, floating layout.
+saved state keeps working. On desktop, `config.toml` via `craft-settings` stores the user-editable
+settings; `Shell::save`/`load` still stores transient UI state in eframe storage. On web there is
+only eframe/local storage. Defaults: left card open 250 pt, right card closed 264 pt, history open
+40 pt, floating layout, platform frame.
 
 Add a page with `PageSpec { id, label, icon }` in `preference_pages()` and draw it in
 `draw_preferences_page(ui, id)`. The rail groups your pages under `prefs.group_app`. Use the kit's
@@ -302,6 +344,10 @@ the built-in pages.
 
 - **One `Shell` per window.** Several windows mean several shells and separate storage keys; the
   shell itself is not shareable across threads.
+- **Shared infrastructure.** `craft-quit`, `craft-window`, `craft-settings`, `craft-atomic`,
+  `craft-platform` and `craft-docpath` are pinned from `craft-libs`; see `docs/craft-libs.md`.
+  Keep the local `craft-ui`/`craft-i18n` (the shared crates have the same package names and a
+  different model). Do not add domain crates to the shell.
 - **Keep the layers clean.** Domain models never enter `craft-ui`/`craft-theme`; generic widgets go
   in `craft-ui::ui_kit` (new module + re-export), app-specific composables stay in your app. The
   `layers` gate rejects upward dependencies, and `ui-containers` rejects raw egui hosts outside
@@ -322,8 +368,8 @@ the built-in pages.
 - **Tests:** drive the real shell with `craft_test::Harness` and assert on published geometry and
   app state; see `docs/testing.md`. A click can be delivered on several egui passes, so guard
   mutating click handlers with `craft_ui::input::once_this_pass`.
-- **Attribution:** code adapted from SolidCraft gets a row in `ATTRIBUTION.md`; keep `NOTICE` and
-  the licence files untouched.
+- **Attribution:** code adapted from SolidCraft or craft-libs gets a row in `ATTRIBUTION.md`; keep
+  `NOTICE` and the licence files in sync with the adopted code.
 
 ## 7. Feature checklist
 
@@ -335,4 +381,4 @@ the built-in pages.
 - [ ] `en.json` + `es.json` keys; `cargo xtask i18n --check`.
 - [ ] Preferences page/row if it has settings; defaults behave under Cancel/Apply/OK.
 - [ ] Headless test for the consumer-visible behaviour and, if it is chrome, a geometry assertion.
-- [ ] `cargo xtask ci`.
+- [ ] `cargo xtask ci`; also `cargo xtask web` if the browser host or a shared dependency changed.

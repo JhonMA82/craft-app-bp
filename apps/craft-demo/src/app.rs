@@ -531,25 +531,81 @@ impl ShellApp for DemoApp {
     fn status(&self) -> Option<Status> {
         self.notice.as_ref().map(|text| Status { text: text.clone(), fraction: None })
     }
+
+    /// The reference app owns no editable document; a real app checks its dirty documents here.
+    fn can_close(&mut self) -> bool {
+        true
+    }
+
+    fn close_denied(&mut self) {}
 }
 
 /// One frame of the demo, without any windowing. The desktop and web bootstraps both call it.
 pub struct CraftApp {
     pub shell: Shell,
     pub demo: DemoApp,
+    #[cfg(not(target_arch = "wasm32"))]
+    settings: crate::settings::SettingsHost,
 }
 
 impl CraftApp {
     /// `stored` is the shell JSON; a first run uses the shell's own defaults (browser and history
     /// showing, the floating layout).
     pub fn new(_cc: &eframe::CreationContext<'_>, stored: Option<&str>) -> Result<Self, String> {
+        Self::new_with_frame(_cc, stored, None)
+    }
+
+    /// [`Self::new`], with the frame the platform chose before the window was created. When the
+    /// desktop draws the frame, the app bar must not draw caption buttons; when the app draws it,
+    /// it must. `craft_window::Choice` decides this in `main`.
+    pub fn new_with_frame(cc: &eframe::CreationContext<'_>, stored: Option<&str>, app_frame: Option<bool>) -> Result<Self, String> {
+        // On macOS this replaces winit's default Quit with one that asks the app first; elsewhere
+        // it is a no-op. The `menu` feature is enabled by the desktop target dependency only.
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Err(error) = craft_quit::install_app_menu(&cc.egui_ctx, "Craft Demo") {
+            log::warn!("macOS app menu: {error}");
+        }
+        #[cfg(target_arch = "wasm32")]
+        let _ = cc;
         let demo = DemoApp::new()?;
-        let shell = Shell::new(demo.workspace.clone(), stored);
-        Ok(Self { shell, demo })
+        let mut shell = Shell::new(demo.workspace.clone(), stored);
+        #[cfg(not(target_arch = "wasm32"))]
+        let settings = crate::settings::SettingsHost::open(&mut shell, stored);
+        if let Some(app_frame) = app_frame {
+            shell.settings.custom_titlebar = app_frame;
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            Ok(Self { shell, demo, settings })
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            Ok(Self { shell, demo })
+        }
     }
 }
 
 impl CraftApp {
+    /// Decide close requests before the frame is drawn. `eframe::App::logic` calls this even while
+    /// the window is minimized or hidden, where `ui` does not run.
+    pub fn logic(&mut self, ctx: &egui::Context) {
+        // A close requested by the OS, the caption button or `ViewportCommand::Close`.
+        if ctx.input(|i| i.viewport().close_requested()) && !self.demo.can_close() {
+            ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
+            self.demo.close_denied();
+        }
+        // The shell's own Quit command. The shell must not send Close itself: the app decides
+        // whether the request survives, and craft-quit takes it over on macOS.
+        if self.shell.take_quit_request() {
+            if self.demo.can_close() {
+                ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+            } else {
+                self.demo.close_denied();
+            }
+        }
+        craft_quit::on_close_request(ctx);
+    }
+
     /// One frame of the whole shell and demo. Kept separate from `eframe::App` so the hot-reload
     /// host can call it through a reloadable library function.
     pub fn draw(&mut self, ui: &mut Ui) {
@@ -577,15 +633,34 @@ impl CraftApp {
         // The demo's Properties card mirrors the live appearance; the shell owns the settings.
         self.demo.settings = self.shell.settings.clone();
         self.shell.ui(&mut self.demo, ui);
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            self.settings.sync(&self.shell);
+            self.settings.tick(ui.ctx());
+        }
     }
 }
 
 impl eframe::App for CraftApp {
+    fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.logic(ctx);
+    }
+
     fn ui(&mut self, ui: &mut Ui, _frame: &mut eframe::Frame) {
         self.draw(ui);
     }
 
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        storage.set_string(craft_shell::STORAGE_UI, self.shell.save());
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            // eframe keeps the transient shell state; `config.toml` keeps the user-editable
+            // settings. Writing both means deleting one store still leaves a usable fallback.
+            storage.set_string(craft_shell::STORAGE_UI, self.shell.save());
+            self.settings.flush();
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            storage.set_string(craft_shell::STORAGE_UI, self.shell.save());
+        }
     }
 }

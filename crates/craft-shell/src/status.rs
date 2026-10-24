@@ -5,6 +5,8 @@
 //! Adapted from SolidCraft (`crates/ui-egui/src/viewport.rs`: `paint_toast`), MIT OR Apache-2.0.
 //! See ATTRIBUTION.md.
 
+use std::time::Duration;
+
 use craft_ui::theme::Tokens;
 use craft_ui::ui_kit::{Container, Surface};
 use egui::{Rect, Sense, Ui, pos2, vec2};
@@ -21,9 +23,17 @@ const MAX_TEXT_W: f32 = 440.0;
 /// The transient chip over `content` (the workspace below the app bar or the ribbon).
 pub fn show<A: ShellApp>(ui: &mut Ui, shell: &mut Shell, app: &A, content: Rect) {
     let t = Tokens::get();
-    let transient = shell.status.as_ref().filter(|(_, at, _)| crate::now_ms() - at < LIFETIME_MS);
+    let now = crate::now_ms();
+    let transient = shell.status.as_ref().filter(|(_, at, _)| now - at < LIFETIME_MS);
+    if let Some((_, at, _)) = transient {
+        let left = (LIFETIME_MS - (now - at)).max(0.0);
+        ui.ctx().request_repaint_after(Duration::from_millis(left as u64 + 1));
+    }
     let status = app.status();
     let fraction = status.as_ref().and_then(|status| status.fraction).filter(|fraction| fraction.is_finite());
+    if fraction.is_some() {
+        ui.ctx().request_repaint_after(Duration::from_millis(100));
+    }
     let (text, error) = match (transient, &status) {
         (Some((text, _, error)), _) => (text.clone(), *error),
         (None, Some(status)) if fraction.is_some() => (status.text.clone(), false),

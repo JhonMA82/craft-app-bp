@@ -56,9 +56,13 @@ impl Workspace {
             if !ids.insert(tab.id) {
                 return Err(format!("duplicate tab `{}`", tab.id));
             }
+            let mut panels = BTreeSet::new();
             for panel in &tab.panels {
                 if panel.id.is_empty() || panel.label.is_empty() {
                     return Err(format!("panel `{}` of tab `{}` needs an id and a label", panel.id, tab.id));
+                }
+                if !panels.insert(panel.id) {
+                    return Err(format!("duplicate panel `{}` in tab `{}`", panel.id, tab.id));
                 }
                 for id in panel.commands {
                     if registry.get(id).is_none() {

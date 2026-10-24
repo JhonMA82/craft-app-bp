@@ -7,7 +7,7 @@ use egui::{Align2, Id, Ui, Vec2};
 
 use crate::Shell;
 
-pub fn show(ui: &mut Ui, shell: &mut Shell) {
+pub fn show(ui: &mut Ui, shell: &mut Shell, title: &str) {
     if !shell.about_open {
         return;
     }
@@ -20,7 +20,7 @@ pub fn show(ui: &mut Ui, shell: &mut Shell) {
         .actions(tr("ui.close"), "", None)
         .show(&ctx, true, |ui| {
             ui.set_width(t.form_card_width + t.space_24 * 2.0);
-            ui.label(egui::RichText::new("Craft").font(craft_ui::fonts::semibold(t.font_title)).color(t.form_ink));
+            ui.label(egui::RichText::new(title).font(craft_ui::fonts::semibold(t.font_title)).color(t.form_ink));
             ui_kit::text(ui, &format("about.version", &[("version", env!("CARGO_PKG_VERSION"))]), Text::Note("about_version"));
             ui_kit::text(ui, &format("about.commit", &[("commit", commit)]), Text::Note("about_commit"));
             ui_kit::text(ui, tr("about.license"), Text::Note("about_license"));

@@ -12,6 +12,7 @@ hot-lib-reloader = "0.8"
 eframe.workspace = true
 egui.workspace = true
 log.workspace = true
+craft-window.workspace = true
 
 [lints]
 workspace = true

@@ -13,8 +13,10 @@ use egui::Ui;
 
 use crate::commands::{CommandRegistry, CommandSpec};
 
-/// Keys the shell handles before any command shortcut.
-pub const RESERVED: &[&str] = &["Escape", "Ctrl+S", "Ctrl+N", "Ctrl+O", "Ctrl+K", "Ctrl+Shift+P"];
+/// Keys the shell handles itself before any command shortcut: Esc closes overlays, while Ctrl+K
+/// and Ctrl+Shift+P toggle the palette. Everything else — including Ctrl+S, Ctrl+N and Ctrl+O —
+/// is an ordinary command key the app may bind.
+pub const RESERVED: &[&str] = &["Escape", "Ctrl+K", "Ctrl+Shift+P"];
 
 /// What the Shortcuts page asks the shell to do after painting.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
