@@ -1,0 +1,31 @@
+[package]
+name = "craft-demo-hot-lib"
+description = "Reloadable UI library for craft-demo-hot (development only)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lib]
+# `rlib` gives the host the state type and its constructor; `dylib` is the artefact that is swapped
+# into the running host on every rebuild.
+crate-type = ["rlib", "dylib"]
+
+[dependencies]
+craft-demo.workspace = true
+egui.workspace = true
+
+# `#[unsafe(no_mangle)]` below is the single ABI export hot-lib-reloader needs; there is no unsafe
+# code in this crate. Every other lint matches the workspace.
+[lints.rust]
+unsafe_code = "allow"
+
+[lints.clippy]
+type_complexity = "allow"
+too_many_arguments = "allow"
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+unreachable = "deny"

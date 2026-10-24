@@ -1,0 +1,8 @@
+{
+  "name": "Craft Demo",
+  "short_name": "Craft",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#272b34",
+  "theme_color": "#1c1f26"
+}

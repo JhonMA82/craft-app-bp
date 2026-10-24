@@ -1,0 +1,15 @@
+name: CI
+on:
+  push:
+  pull_request:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup toolchain install 1.99.1 --profile minimal --component clippy,rustfmt
+      - run: rustup default 1.99.1
+      - run: cargo xtask ci
+      - run: rustup target add wasm32-unknown-unknown
+      - run: cargo check -p craft-demo-web --target wasm32-unknown-unknown

@@ -1,0 +1,16 @@
+[package]
+name = "craft-test"
+description = "Headless egui harness for shell and app UI tests."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+craft-theme.workspace = true
+craft-ui.workspace = true
+craft-shell.workspace = true
+egui.workspace = true
+
+[lints]
+workspace = true

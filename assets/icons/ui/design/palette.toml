@@ -1,0 +1,133 @@
+# Icon colour roles. Artwork in svg/ uses the stable source hex values below (or `currentColor`
+# for the `line` role); the build maps each identifier to its role and the app resolves the role to
+# the value for the active theme. `source` is the stable SVG identifier; edit only light/dark
+# display values or accent ramps to recolour finished artwork without modifying SVGs.
+#
+# Adapted from SolidCraft (assets/icons/ui/design/palette.toml), MIT OR Apache-2.0. The CAD
+# accents (surface/form/mesh/sketch/constraint/construction) were replaced by the shell's seven
+# accent families. See ATTRIBUTION.md.
+
+[roles.ink]        # outlines and details drawn over a face
+source = "#34465b"
+light = "#34465b"
+dark = "#1f2021"
+[roles.line]       # line art that sits directly on the UI background (SVG: currentColor)
+source = "#34465b"
+light = "#34465b"
+dark = "#dbe4ee"
+[roles.passive-1]  # passive geometry, lightest face
+source = "#e2e8ef"
+light = "#e2e8ef"
+dark = "#8da3c3"
+[roles.passive-2]
+source = "#b8c3cf"
+light = "#b8c3cf"
+dark = "#6d81a2"
+[roles.passive-3]  # darkest passive face
+source = "#8e9faf"
+light = "#8e9faf"
+dark = "#546782"
+[roles.gap]        # erases earlier artwork to transparency
+source = "#ffffff"
+light = "#ffffff"
+dark = "#1e2530"
+[roles.guide]      # construction and guide dots
+source = "#6f879c"
+light = "#6f879c"
+dark = "#8093a4"
+[roles.active-1]   # changed or result geometry, palest face
+source = "#b9ddf8"
+light = "#b9ddf8"
+dark = "#4ea1dc"
+[roles.active-2]
+source = "#328bd3"
+light = "#328bd3"
+dark = "#3287d1"
+[roles.active-3]   # strongest blue: strokes and accents
+source = "#236ead"
+light = "#236ead"
+dark = "#2976b8"
+
+[strokes]          # on the 64 grid
+geometry = 2.55
+action = 4.25
+navigation = 5.6
+parameters = 4.2
+
+# Accent colours. An accent replaces the roles it lists (normally the three `active-*` blues), so
+# an icon keeps its drawing and only changes colour. Roles an accent does not list keep their base
+# value. `icon-accents` maps an icon id to its default accent.
+
+[accents.blue.active-1]
+light = "#b9ddf8"
+dark = "#4ea1dc"
+[accents.blue.active-2]
+light = "#328bd3"
+dark = "#3287d1"
+[accents.blue.active-3]
+light = "#236ead"
+dark = "#2976b8"
+
+[accents.green.active-1]
+light = "#bfe2cc"
+dark = "#7ab792"
+[accents.green.active-2]
+light = "#439a65"
+dark = "#3a965e"
+[accents.green.active-3]
+light = "#057f45"
+dark = "#128d45"
+
+[accents.orange.active-1]
+light = "#f1d2af"
+dark = "#cc9362"
+[accents.orange.active-2]
+light = "#c06f00"
+dark = "#bd750d"
+[accents.orange.active-3]
+light = "#a45000"
+dark = "#955a0e"
+
+[accents.yellow.active-1]
+light = "#ffec8e"
+dark = "#ffe282"
+[accents.yellow.active-2]
+light = "#bb9600"
+dark = "#ab8f00"
+[accents.yellow.active-3]
+light = "#e0b200"
+dark = "#c6a800"
+
+[accents.purple.active-1]
+light = "#decff8"
+dark = "#9c8dd2"
+[accents.purple.active-2]
+light = "#9567e2"
+dark = "#9066db"
+[accents.purple.active-3]
+light = "#7349cd"
+dark = "#7b63a6"
+
+[accents.teal.active-1]
+light = "#cfe6ef"
+dark = "#2f5666"
+[accents.teal.active-2]
+light = "#4f93b5"
+dark = "#2a7fa8"
+[accents.teal.active-3]
+light = "#1e6f96"
+dark = "#4fb3d9"
+
+[accents.pink.active-1]
+light = "#f0c6d9"
+dark = "#7a4a60"
+[accents.pink.active-2]
+light = "#c8588f"
+dark = "#c8588f"
+[accents.pink.active-3]
+light = "#a8326e"
+dark = "#e074ae"
+
+# Default accent by requested icon id. Empty: an icon keeps the base blue unless an alias names
+# another accent.
+[icon-accents]

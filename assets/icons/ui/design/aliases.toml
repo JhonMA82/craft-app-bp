@@ -1,0 +1,5 @@
+# App icon ids that reuse another master instead of carrying a copy.
+#   alias = "master"                              same artwork, default (blue) colours
+#   alias = { master = "m", accent = "green" }    same artwork in another accent (palette.toml)
+# Icons that mean the same operation elsewhere belong here, so they stay identical.
+[alias]

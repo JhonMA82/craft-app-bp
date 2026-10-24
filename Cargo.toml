@@ -1,0 +1,80 @@
+[workspace]
+resolver = "3"
+members = ["crates/*", "apps/*", "xtask"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+# internal
+craft-theme = { path = "crates/craft-theme" }
+craft-i18n = { path = "crates/craft-i18n" }
+craft-ui = { path = "crates/craft-ui" }
+craft-shell = { path = "crates/craft-shell" }
+craft-test = { path = "crates/craft-test" }
+craft-demo = { path = "apps/craft-demo" }
+
+# foundation
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+log = "0.4"
+
+# ui
+egui = "0.36"
+eframe = { version = "0.36", default-features = false, features = ["accesskit", "default_fonts", "glow", "persistence", "wayland", "x11"] }
+# Instant/SystemTime that also work in the browser (std panics on wasm32-unknown-unknown).
+web-time = "1"
+hot-lib-reloader = "0.8"
+# rasterises the UI icon SVGs (BSD-3-Clause, pure Rust, builds for wasm)
+tiny-skia = { version = "0.12", default-features = false, features = ["std", "simd"] }
+# build script: reads the icon palette (MIT OR Apache-2.0)
+toml = "1"
+
+# xtask
+syn = { version = "2", features = ["full", "visit"] }
+proc-macro2 = "1"
+quote = "1"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+type_complexity = "allow"
+too_many_arguments = "allow"
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+unreachable = "deny"
+
+[profile.dev.package."*"]
+opt-level = 2
+
+[profile.dev]
+opt-level = 1
+
+# Tests and lints (`cargo xtask ci`, GitHub CI): quick to build, quick enough to run. Light
+# optimisation, line tables only (file:line in backtraces), no LTO.
+[profile.ci]
+inherits = "dev"
+opt-level = 1
+debug = "line-tables-only"
+debug-assertions = false
+overflow-checks = true
+incremental = false
+
+[profile.ci.package."*"]
+opt-level = 2
+# No line tables for dependencies: they were over a third of the test archive every CI shard
+# downloads. Our own crates keep theirs, so a backtrace still names file:line in them.
+debug = false
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 16
+debug = "line-tables-only"

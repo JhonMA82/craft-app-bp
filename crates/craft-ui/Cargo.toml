@@ -1,0 +1,21 @@
+[package]
+name = "craft-ui"
+description = "Fonts, icons, scenario handles and the retained-mode UI kit."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+craft-theme.workspace = true
+craft-i18n.workspace = true
+egui.workspace = true
+log.workspace = true
+serde.workspace = true
+tiny-skia.workspace = true
+
+[build-dependencies]
+toml.workspace = true
+
+[lints]
+workspace = true

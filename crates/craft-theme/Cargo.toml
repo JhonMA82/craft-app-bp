@@ -1,0 +1,15 @@
+[package]
+name = "craft-theme"
+description = "Design tokens, light/dark palettes, colour vision modes and theme files."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+egui.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

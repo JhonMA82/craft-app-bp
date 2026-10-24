@@ -1,0 +1,22 @@
+[package]
+name = "craft-demo"
+description = "Reference application built on craft-shell."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+craft-theme.workspace = true
+craft-i18n.workspace = true
+craft-ui.workspace = true
+craft-shell.workspace = true
+egui.workspace = true
+eframe.workspace = true
+log.workspace = true
+
+[dev-dependencies]
+craft-test.workspace = true
+
+[lints]
+workspace = true
